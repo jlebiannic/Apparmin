@@ -1,4 +1,4 @@
-  NB PERES/SETS: 22
-  NB FILS      : 1023
-  NB CHAINES   : 1001
+  NB PERES/SETS: 3
+  NB FILS      : 11
+  NB CHAINES   : 8
 

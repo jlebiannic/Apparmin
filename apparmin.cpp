@@ -19,7 +19,7 @@
 /*						fread(pBuffer, 1, longueurFichier+1, filein).		*/
 /*						Pour fonctionner avec un fichier de type Windows	*/
 /*						il faudrait écrire:									*/
-/*						fread(pBuffer, 1, longueurFichier+2, filein).		*/	
+/*						fread(pBuffer, 1, longueurFichier+2, filein).		*/
 /*																			*/
 /*                                                                          */
 /****************************************************************************/
@@ -87,244 +87,250 @@ char strFicRptGlobal[100] = "/cd6/Res/LHH1S0/rptGlobal.txt";
 
 //Longueur du fichier d'entree
 const int longueurFichier = nLgSchema +
-       nLgArea  +
-       nLgRecord +
-       nLgSet  +
-       (nLgFlag*6) +
-       (nLgDbKey*7)+
-       nLgOrdre+
-       nLgCalc+
-       nLgFiller;
+		nLgArea  +
+		nLgRecord +
+		nLgSet  +
+		(nLgFlag*6) +
+		(nLgDbKey*7)+
+		nLgOrdre+
+		nLgCalc+
+		nLgFiller;
 
 //Longueur du fichier de sortie
 const int longueurFicSortie = nLgSchema +
-       nLgArea  +
-       nLgRecord +
-       nLgSet  +
-       (nLgFlag*6) +
-       (nLgDbKey*7)+
-       nLgOrdre+
-       nLgCalc+
-       nLgFiller;
+		nLgArea  +
+		nLgRecord +
+		nLgSet  +
+		(nLgFlag*6) +
+		(nLgDbKey*7)+
+		nLgOrdre+
+		nLgCalc+
+		nLgFiller;
 
 FILE* f_out;
 FILE* f_hash;
 FILE* f_rpt;
 
-  char *pBuffer = new char[longueurFichier+100];
+char *pBuffer = new char[longueurFichier+100];
 
 //Booleens
-int bRapport = 1;
+int bRapport = 0;
 int bRapportGlobal = 1;
-int bHashRpt = 1;
+int bHashRpt = 0;
+int strictMode = 1;
+
+// DBG
+char lastMb[20];
+char lastOwnerMb[20];
+// END DBG
 
 //Extraction des différents champs du membre
 int extractChamp(char *pBuf, char* champ, int lg, int& pos)
 {
- memcpy (champ, pBuf+pos, lg);
-    champ[lg]= '\0';
- //printf("Champ(%i,%i):<%s>, %i", pos, pos+lg, champ, strlen(champ));
- //printf("\n");
- pos=pos+lg;
+	memcpy (champ, pBuf+pos, lg);
+	champ[lg]= '\0';
+	//printf("Champ(%i,%i):<%s>, %i", pos, pos+lg, champ, strlen(champ));
+	//printf("\n");
+	pos=pos+lg;
 
- return 0;
+	return 0;
 }
 
 
 /////////////////////////////
 int constructBuffer(char *pBuf, char* champ, int lg, int& pos)
 {
- memcpy (pBuf+pos, champ, lg);
- pos=pos+lg;
- return 0;
+	memcpy (pBuf+pos, champ, lg);
+	pos=pos+lg;
+	return 0;
 }
 
 
 void chainage(Membre *mb, HashTable& ht)
 {
- if(strcmp(mb->sNext, strFinSet)==0)
- {
-  mb->next = NULL;
-  membreFin = mb;
- }
- else
- {
-  Membre *MembreNext = (Membre *)hashTableFind(ht, mb->sNext);
-  if(MembreNext)
-  {
-   MembreNext->prior = mb;
-   mb->next = MembreNext;
+	if(strcmp(mb->sNext, strFinSet)==0)
+	{
+		mb->next = NULL;
+		membreFin = mb;
+	}
+	else
+	{
+		Membre *MembreNext = (Membre *)hashTableFind(ht, mb->sNext);
+		if(MembreNext)
+		{
+			MembreNext->prior = mb;
+			mb->next = MembreNext;
 
-   nNbChaines++;
-   nNbChainesGlobal++;
-  }
- }
+			nNbChaines++;
+			nNbChainesGlobal++;
+		}
+	}
 
- if(strcmp(mb->sPrior, strFinSet)==0)
- {
-  mb->prior = NULL;
-  membreDepart = mb;
- }
- else
- {
-  Membre *MembrePrior = (Membre *)hashTableFind(ht, mb->sPrior);
-  if(MembrePrior)
-  {
-   MembrePrior->next = mb;
-   mb->prior = MembrePrior;
+	if(strcmp(mb->sPrior, strFinSet)==0)
+	{
+		mb->prior = NULL;
+		membreDepart = mb;
+	}
+	else
+	{
+		Membre *MembrePrior = (Membre *)hashTableFind(ht, mb->sPrior);
+		if(MembrePrior)
+		{
+			MembrePrior->next = mb;
+			mb->prior = MembrePrior;
 
-   nNbChaines++;
-   nNbChainesGlobal++;
-  }
+			nNbChaines++;
+			nNbChainesGlobal++;
+		}
 
- }
+	}
 
- hashTableInsert(ht, mb->sMembre, mb);
+	hashTableInsert(ht, mb->sMembre, mb);
 
 }
 
 int ecritResultats(HashTable& ht)
 {
 
- if (membreDepart == NULL)
-	 return 1;
+	if (membreDepart == NULL)
+		return 1;
 
- //ecriture du fichier de sortie
- Membre *mb = membreDepart;
- __int64 nOrdre = 1;
- char sOrdreTmp [nLgOrdre+1]="";
- char sOrdre [nLgOrdre+1]="";
+	//ecriture du fichier de sortie
+	Membre *mb = membreDepart;
+	__int64 nOrdre = 1;
+	char sOrdreTmp [nLgOrdre+1]="";
+	char sOrdre [nLgOrdre+1]="";
 
- while (mb)
- {
-  
-  //mb->ordre = nOrdre; //JLB01
+	while (mb)
+	{
 
-  //mb->ordreGlobal = nOrdreGlobal;  //JLB01
-  //Si F/L et Aut/Mand conv de l'ordre Glob en chaine pour num seq
-  if (strcmp(mb->sFlagRenum,sFlagFLMA)==0)
-  {
-   //incrémentation automatique de la séquence
-   strcpy(mb->sIdentSeq, RechercheSeq(mb->sRecord));//JLB01 Rq: pour les sets multi-record, la colonne Ordre est toujours utilisée
-  }
-  
-  //Conversion ordre en chaine
-  _i64toa(nOrdre,sOrdreTmp,10);
-  sprintf(sOrdre, "%012s", sOrdreTmp);
+		//mb->ordre = nOrdre; //JLB01
 
-  //JLB01
-  //Si F/L et Aut/Mand conv de l'ordre Glob en chaine pour num seq
-  //strcpy(mb->sIdentSeq,"000000000000");
-  //if (strcmp(mb->sFlagRenum,sFlagFLMA)==0)
-  //{
-  // sprintf(mb->sIdentSeq, "%012d", mb->ordreGlobal);
-  //}
+		//mb->ordreGlobal = nOrdreGlobal;  //JLB01
+		//Si F/L et Aut/Mand conv de l'ordre Glob en chaine pour num seq
+		if (strcmp(mb->sFlagRenum,sFlagFLMA)==0)
+		{
+			//incrémentation automatique de la séquence
+			strcpy(mb->sIdentSeq, RechercheSeq(mb->sRecord));//JLB01 Rq: pour les sets multi-record, la colonne Ordre est toujours utilisée
+		}
 
-  int pos=0;
-  memset( pBuffer, '*', longueurFichier+100);
-  //nstructBuffer(pBuffer, mb->sSchema, nLgSchema, pos); //Schema
-  constructBuffer(pBuffer, mb->sArea, nLgArea, pos);  //Area
-  constructBuffer(pBuffer, mb->sRecord, nLgRecord, pos); //Type du Record
-  constructBuffer(pBuffer, mb->sSet, nLgSet, pos);  //Set
-  constructBuffer(pBuffer, mb->sFlagRenum, nLgFlag, pos);
-  constructBuffer(pBuffer, mb->sFlagsMisc,5*nLgFlag, pos);
-  constructBuffer(pBuffer, mb->sMembre, nLgDbKey, pos);
-  constructBuffer(pBuffer, mb->sIdent, nLgIdent, pos);
-  constructBuffer(pBuffer, mb->sIdentSeq, nLgIdent, pos);
-  constructBuffer(pBuffer, mb->sOwner, nLgDbKey, pos);
-  constructBuffer(pBuffer, mb->sIdentOwner, nLgIdent, pos);
-  constructBuffer(pBuffer, mb->sNext, nLgDbKey, pos);
-  constructBuffer(pBuffer, mb->sPrior, nLgDbKey, pos);
-  constructBuffer(pBuffer, sOrdre, nLgOrdre, pos);
-  constructBuffer(pBuffer, mb->sCalc, nLgCalc, pos); // ADD CALC ZONE
-  //nstructBuffer(pBuffer, mb->sFiller, nLgFiller, pos);
-  pBuffer[longueurFichier]='\n';
-  //printf("W<%s>W\n", pBuffer);
+		//Conversion ordre en chaine
+		_i64toa(nOrdre,sOrdreTmp,10);
+		sprintf(sOrdre, "%012s", sOrdreTmp);
 
-  if (fwrite(pBuffer, 1, longueurFichier+1, f_out) < 0)
-  {
-   printf("Erreur ecriture: %s\n",strFicOut);
-   exit(99);
-  }
+		//JLB01
+		//Si F/L et Aut/Mand conv de l'ordre Glob en chaine pour num seq
+		//strcpy(mb->sIdentSeq,"000000000000");
+		//if (strcmp(mb->sFlagRenum,sFlagFLMA)==0)
+		//{
+		// sprintf(mb->sIdentSeq, "%012d", mb->ordreGlobal);
+		//}
 
-  nOrdre ++;
-  //nOrdreGlobal ++;  //JLB01
+		int pos=0;
+		memset( pBuffer, '*', longueurFichier+100);
+		//nstructBuffer(pBuffer, mb->sSchema, nLgSchema, pos); //Schema
+		constructBuffer(pBuffer, mb->sArea, nLgArea, pos);  //Area
+		constructBuffer(pBuffer, mb->sRecord, nLgRecord, pos); //Type du Record
+		constructBuffer(pBuffer, mb->sSet, nLgSet, pos);  //Set
+		constructBuffer(pBuffer, mb->sFlagRenum, nLgFlag, pos);
+		constructBuffer(pBuffer, mb->sFlagsMisc,5*nLgFlag, pos);
+		constructBuffer(pBuffer, mb->sMembre, nLgDbKey, pos);
+		constructBuffer(pBuffer, mb->sIdent, nLgIdent, pos);
+		constructBuffer(pBuffer, mb->sIdentSeq, nLgIdent, pos);
+		constructBuffer(pBuffer, mb->sOwner, nLgDbKey, pos);
+		constructBuffer(pBuffer, mb->sIdentOwner, nLgIdent, pos);
+		constructBuffer(pBuffer, mb->sNext, nLgDbKey, pos);
+		constructBuffer(pBuffer, mb->sPrior, nLgDbKey, pos);
+		constructBuffer(pBuffer, sOrdre, nLgOrdre, pos);
+		constructBuffer(pBuffer, mb->sCalc, nLgCalc, pos); // ADD CALC ZONE
+		//nstructBuffer(pBuffer, mb->sFiller, nLgFiller, pos);
+		pBuffer[longueurFichier]='\n';
+		//printf("W<%s>W\n", pBuffer);
 
-//  if (strcmp(mb->sFlagRenum,sFlagFLMA)==0)
-//  {
-//   IncrementeSeq(mb->sRecord); //JLB01
-//  }
+		if (fwrite(pBuffer, 1, longueurFichier+1, f_out) < 0)
+		{
+			printf("Erreur ecriture: %s\n",strFicOut);
+			exit(99);
+		}
 
-  mb = mb->next;
+		nOrdre ++;
+		//nOrdreGlobal ++;  //JLB01
 
- }
+		//  if (strcmp(mb->sFlagRenum,sFlagFLMA)==0)
+		//  {
+		//   IncrementeSeq(mb->sRecord); //JLB01
+		//  }
+
+		mb = mb->next;
+
+	}
 
 
 #ifdef _WIN32
- //fprintf(f_out,"=====\n");
+	//fprintf(f_out,"=====\n");
 #endif
 
- //Ecriture de la hashtable
- if(bHashRpt)
- {
+	//Ecriture de la hashtable
+	if(bHashRpt)
+	{
 
-  hashTablePrint(ht, f_hash);
+		hashTablePrint(ht, f_hash);
 
-  int resPrintf = fprintf(f_hash,"\n================\n");
-  if (resPrintf <0)
-   printf("Erreur ecriture: %s\n",strFicHash);
+		int resPrintf = fprintf(f_hash,"\n================\n");
+		if (resPrintf <0)
+			printf("Erreur ecriture: %s\n",strFicHash);
 
 
- }
+	}
 
- //Ecriture du fichier rapport
- if(bRapport)
- {
+	//Ecriture du fichier rapport
+	if(bRapport)
+	{
 
-  int resPrintf = 
-	  fprintf(f_rpt,"==>PERE (SET): %s (%s)\n", sLastOwner, sLastSet);
-  if (resPrintf <0)
-   printf("Erreur ecriture: %s\n",strFicRpt);
+		int resPrintf =
+				fprintf(f_rpt,"==>PERE (SET): %s (%s)\n", sLastOwner, sLastSet);
+		if (resPrintf <0)
+			printf("Erreur ecriture: %s\n",strFicRpt);
 
-  resPrintf = fprintf(f_rpt,"  NB FILS   : %d\n", nNbLus);
-  if (resPrintf <0)
-   printf("Erreur ecriture: %s\n",strFicRpt);
+		resPrintf = fprintf(f_rpt,"  NB FILS   : %d\n", nNbLus);
+		if (resPrintf <0)
+			printf("Erreur ecriture: %s\n",strFicRpt);
 
-  resPrintf = fprintf(f_rpt,"  NB CHAINES: %d\n\n", nNbChaines);
-  if (resPrintf <0)
-   printf("Erreur ecriture: %s\n",strFicRpt);
+		resPrintf = fprintf(f_rpt,"  NB CHAINES: %d\n\n", nNbChaines);
+		if (resPrintf <0)
+			printf("Erreur ecriture: %s\n",strFicRpt);
 
- }
+	}
 
- return 0;
+	return 0;
 
 }
 
 void ecritRapportGlobal()
 {
- FILE* f_rpt;
+	FILE* f_rpt;
 
- if ((f_rpt = fopen(strFicRptGlobal, "w")) == 0)
- {
-  fprintf(stderr,
-   "Probleme d'ouverture en ajout: %s\n", strFicRptGlobal);
-  exit(1);
- }
+	if ((f_rpt = fopen(strFicRptGlobal, "w")) == 0)
+	{
+		fprintf(stderr,
+				"Probleme d'ouverture en ajout: %s\n", strFicRptGlobal);
+		exit(1);
+	}
 
 
- int resPrintf = fprintf(f_rpt,"  NB PERES/SETS: %d\n", nNbPeres);
- if (resPrintf <0)
-  printf("Erreur ecriture: %s\n",strFicRptGlobal);
+	int resPrintf = fprintf(f_rpt,"  NB PERES/SETS: %d\n", nNbPeres);
+	if (resPrintf <0)
+		printf("Erreur ecriture: %s\n",strFicRptGlobal);
 
- resPrintf = fprintf(f_rpt,"  NB FILS      : %d\n", nNbLusGlobal);
- if (resPrintf <0)
-  printf("Erreur ecriture: %s\n",strFicRptGlobal);
+	resPrintf = fprintf(f_rpt,"  NB FILS      : %d\n", nNbLusGlobal);
+	if (resPrintf <0)
+		printf("Erreur ecriture: %s\n",strFicRptGlobal);
 
- resPrintf = fprintf(f_rpt,"  NB CHAINES   : %d\n\n", nNbChainesGlobal);
- if (resPrintf <0)
-  printf("Erreur ecriture: %s\n",strFicRptGlobal);
+	resPrintf = fprintf(f_rpt,"  NB CHAINES   : %d\n\n", nNbChainesGlobal);
+	if (resPrintf <0)
+		printf("Erreur ecriture: %s\n",strFicRptGlobal);
 
- fclose(f_rpt);
+	fclose(f_rpt);
 
 }
 
@@ -333,119 +339,134 @@ void ecritRapportGlobal()
 //Lecture du fichier
 int lectureFichier(FILE* filein, Membre* mb)
 {
+	//ar *pBuffer = new char[longueurFichier+100];
+	memset( pBuffer, '*', longueurFichier+100);
 
- //ar *pBuffer = new char[longueurFichier+100];
- memset( pBuffer, '*', longueurFichier+100);
+	int numRead = fread(pBuffer, 1, longueurFichier+1, filein);
+	int pos =0;
+	//uffer[longueurFichier]='\0';
+	if(numRead > 0)
+	{
+		//tractChamp(pBuffer, mb->sSchema, nLgSchema, pos); //Schema
+		extractChamp(pBuffer, mb->sArea, nLgArea, pos);
+		extractChamp(pBuffer, mb->sRecord, nLgRecord, pos);
+		extractChamp(pBuffer, mb->sSet, nLgSet, pos);
+		extractChamp(pBuffer, mb->sFlagRenum, nLgFlag, pos);
+		extractChamp(pBuffer, mb->sFlagsMisc, 5*nLgFlag, pos);
+		extractChamp(pBuffer, mb->sMembre, nLgDbKey, pos);
+		extractChamp(pBuffer, mb->sIdent, nLgIdent, pos);
+		extractChamp(pBuffer, mb->sIdentSeq, nLgIdent, pos);
+		extractChamp(pBuffer, mb->sOwner, nLgDbKey, pos);
+		extractChamp(pBuffer, mb->sIdentOwner, nLgIdent, pos);
+		extractChamp(pBuffer, mb->sNext, nLgDbKey, pos);
+		extractChamp(pBuffer, mb->sPrior, nLgDbKey, pos);
+		extractChamp(pBuffer, mb->sOrdre, nLgOrdre, pos);
+		extractChamp(pBuffer, mb->sCalc, nLgCalc, pos); // ADD CALC ZONE
+		//tractChamp(pBuffer, mb->sFiller, nLgFiller, pos); //Filler
+		//printf("\nR<%s>R\n", pBuffer);
 
- int numRead = fread(pBuffer, 1, longueurFichier+1, filein);
- int pos =0;
- //uffer[longueurFichier]='\0';
- if(numRead > 0)
- {
-  //tractChamp(pBuffer, mb->sSchema, nLgSchema, pos); //Schema
-  extractChamp(pBuffer, mb->sArea, nLgArea, pos);
-  extractChamp(pBuffer, mb->sRecord, nLgRecord, pos);
-  extractChamp(pBuffer, mb->sSet, nLgSet, pos);
-  extractChamp(pBuffer, mb->sFlagRenum, nLgFlag, pos);
-  extractChamp(pBuffer, mb->sFlagsMisc, 5*nLgFlag, pos);
-  extractChamp(pBuffer, mb->sMembre, nLgDbKey, pos);
-  extractChamp(pBuffer, mb->sIdent, nLgIdent, pos);
-  extractChamp(pBuffer, mb->sIdentSeq, nLgIdent, pos);
-  extractChamp(pBuffer, mb->sOwner, nLgDbKey, pos);
-  extractChamp(pBuffer, mb->sIdentOwner, nLgIdent, pos);
-  extractChamp(pBuffer, mb->sNext, nLgDbKey, pos);
-  extractChamp(pBuffer, mb->sPrior, nLgDbKey, pos);
-  extractChamp(pBuffer, mb->sOrdre, nLgOrdre, pos);
-  extractChamp(pBuffer, mb->sCalc, nLgCalc, pos); // ADD CALC ZONE
-  //tractChamp(pBuffer, mb->sFiller, nLgFiller, pos); //Filler
-  //printf("\nR<%s>R\n", pBuffer);
+		return 1;
+	}
 
-  return 1;
- }
- return 0;
+
+	return 0;
 }
 
 // Lecture d'un fichier et traitement de chaque ligne
 void lectureFichierEtChainage(FILE* filein, HashTable& ht)
 {
- int bFirstTime = 1;
+	int bFirstTime = 1;
 
- Membre* mb = creationMembre();
- while( lectureFichier (filein, mb) )
- {
+	Membre* mb = creationMembre();
+	while( lectureFichier (filein, mb) )
+	{
+		nNbLus++;
+		nNbLusGlobal++;
 
-  nNbLus++;
-  nNbLusGlobal++;
+		if (!bFirstTime &&
+				((strcmp(sLastOwner, mb->sOwner)!=0) ||
+						(strcmp(sLastSet, mb->sSet)!=0) ||
+						(strcmp(sOwnerVide, mb->sOwner)==0)||
+						(strcmp(sSetVide, mb->sSet)==0))
+		){
+			nNbLus--;
 
-  if (!bFirstTime &&
-    ((strcmp(sLastOwner, mb->sOwner)!=0) ||
-     (strcmp(sLastSet, mb->sSet)!=0) ||
-     (strcmp(sOwnerVide, mb->sOwner)==0)||
-     (strcmp(sSetVide, mb->sSet)==0))
-   )
-  {
-   nNbLus--;
+			//ecriture des resultats
+			if(ecritResultats(ht) != 0)
+			{
+				fprintf(stderr, "Le membre de depart est vide ! membre accede: %s\n", mb->sMembre);
+				// DBG
+				fprintf(stderr, "Last record: %s\n", lastMb);
+				fprintf(stderr, "Last owner: %s\n", lastOwnerMb);
+				// END DBG
 
-   //ecriture des resultats
-   if(ecritResultats(ht) != 0)
-   {
-	 fprintf(stderr,
-	 "Le membre de départ est vide ! Dernier membre accédé: %s\n", mb->sMembre);
-	 fclose(filein);
-     exit(98);
-   }
+				if(strictMode){
+					fprintf(stderr, "exit\n");
+					fclose(filein);
+					exit(98);
+				}
+			}
 
-   //Destruction de l'ancienne table
-   hashTableDestroy(ht);
-   membreDepart = NULL;
+			//Destruction de l'ancienne table
+			hashTableDestroy(ht);
+			membreDepart = NULL;
 
-   // Initialisation de la table
-   hashTableInit(ht, MOD);
+			// Initialisation de la table
+			hashTableInit(ht, MOD);
 
-   //Initialisations diverses
-   nNbLus = 0;
-   nNbChaines = 0;
+			//Initialisations diverses
+			nNbLus = 0;
+			nNbChaines = 0;
 
-   //JLB01
-   /*if(strcmp(sLastSet, mb->sSet)!=0)
+			//JLB01
+			/*if(strcmp(sLastSet, mb->sSet)!=0)
    {
     nOrdreGlobal = 1;
    }*/
 
 
-   strcpy(sLastOwner, mb->sOwner);
-   strcpy(sLastSet, mb->sSet);
+			strcpy(sLastOwner, mb->sOwner);
+			strcpy(sLastSet, mb->sSet);
 
-   nNbPeres++;
-   nNbLus++;
-  }
+			nNbPeres++;
+			nNbLus++;
+		}
 
-  if(bFirstTime)
-  {
-   bFirstTime = 0;
-   strcpy(sLastOwner, mb->sOwner);
-   strcpy(sLastSet, mb->sSet);
-   nNbPeres++;
-  }
+		if(bFirstTime)
+		{
+			bFirstTime = 0;
+			strcpy(sLastOwner, mb->sOwner);
+			strcpy(sLastSet, mb->sSet);
+			nNbPeres++;
+		}
 
-  chainage(mb, ht); //rech si les next/prior existent si oui chainage
+		// DBG
+		if(mb != NULL){
+			strcpy(lastMb, mb->sMembre);
+			strcpy(lastOwnerMb, mb->sOwner);
+		}
+		// END DBG
 
-  mb = creationMembre();
- }
+		chainage(mb, ht); //rech si les next/prior existent si oui chainage
 
- //ecriture des resultats
- if(ecritResultats(ht) != 0)
- { 
-  fprintf(stderr,
-  "Le membre de départ est vide ! Dernier membre accédé: %s\n", mb->sMembre);
-  fclose(filein);
-  exit(98);
- }
+		mb = creationMembre();
+	}
+
+	//ecriture des resultats
+	if(ecritResultats(ht) != 0)
+	{
+		fprintf(stderr, "Le membre de départ est vide ! Dernier membre accédé: %s\n", mb->sMembre);
+		if(strictMode){
+			fprintf(stderr, "exit\n");
+			fclose(filein);
+			exit(98);
+		}
+	}
 
 
- //Destruction de l'ancienne table
- hashTableDestroy(ht);
- membreDepart = NULL;
+	//Destruction de l'ancienne table
+	hashTableDestroy(ht);
+	membreDepart = NULL;
 
 }
 
@@ -453,70 +474,70 @@ void initFichier(char *strFileName, FILE **f_)
 {
 
 #ifdef _WIN32
- if ((*f_ = fopen(strFileName, "w")) == 0)
+	if ((*f_ = fopen(strFileName, "w")) == 0)
 #else
- // ((*f_ = fopen(strFileName, "w")) == 0)
- if ((*f_ = fopen(strFileName, "wb, recfm=*,type=record")) == 0)
+		// ((*f_ = fopen(strFileName, "w")) == 0)
+		if ((*f_ = fopen(strFileName, "wb, recfm=*,type=record")) == 0)
 #endif
- {
-  fprintf(stderr,
-   "Probleme d'ouverture en ecriture: %s\n", strFileName);
-  exit(1);
- }
+		{
+			fprintf(stderr,
+					"Probleme d'ouverture en ecriture: %s\n", strFileName);
+			exit(1);
+		}
 
 
 }
 
 void dechargeFichierSequence()//JLB01
 {
- FILE* f_seq;
+	FILE* f_seq;
 #ifdef _WIN32
- if ((f_seq = fopen(strFicSeq, "w")) == 0)
+	if ((f_seq = fopen(strFicSeq, "w")) == 0)
 #else
- if ((f_seq = fopen(strFicSeq, "wb, recfm=*,type=record")) == 0)
+		if ((f_seq = fopen(strFicSeq, "wb, recfm=*,type=record")) == 0)
 #endif
- {
-  fprintf(stderr,
-   "Probleme d'ouverture en ecriture: %s\n", strFicSeq);
-  exit(1);
- }
+		{
+			fprintf(stderr,
+					"Probleme d'ouverture en ecriture: %s\n", strFicSeq);
+			exit(1);
+		}
 
- for(int i=0; i< nTailleSeqTab; i++)
- {
-  fprintf(f_seq,"%s\t%s\n",seqTab[i].rec,seqTab[i].seq);
- }
+	for(int i=0; i< nTailleSeqTab; i++)
+	{
+		fprintf(f_seq,"%s\t%s\n",seqTab[i].rec,seqTab[i].seq);
+	}
 
- fclose (f_seq);
+	fclose (f_seq);
 }
 
 void chargeFichierSequence()//JLB01
 {
- FILE* f_seq;
+	FILE* f_seq;
 #ifdef _WIN32
- if ((f_seq = fopen(strFicSeq, "r")) == 0)
+	if ((f_seq = fopen(strFicSeq, "r")) == 0)
 #else
- if ((f_seq = fopen(strFicSeq, "rb, type=record")) == 0)
+		if ((f_seq = fopen(strFicSeq, "rb, type=record")) == 0)
 #endif
- {
-  fprintf(stderr, "Fichier des séquences absent: %s\n", strFicSeq);
-  return;
- }
+		{
+			fprintf(stderr, "Fichier des séquences absent: %s\n", strFicSeq);
+			return;
+		}
 
- char line[1000];
- int cpt=0;
+	char line[1000];
+	int cpt=0;
 
- while( !feof( f_seq ) )
- {
-   if(fgets(&(line[0]),1000,f_seq))
-   {
-    AlimenteSeq(&(line[0]), cpt);
-    cpt++;
-   }
- }
+	while( !feof( f_seq ) )
+	{
+		if(fgets(&(line[0]),1000,f_seq))
+		{
+			AlimenteSeq(&(line[0]), cpt);
+			cpt++;
+		}
+	}
 
- nTailleSeqTab=cpt;
+	nTailleSeqTab=cpt;
 
- fclose (f_seq);
+	fclose (f_seq);
 
 }
 
@@ -524,72 +545,77 @@ void chargeFichierSequence()//JLB01
 int main(int argc, char* argv[])
 {
 
- if (argc != 7)//JLB01
- {
-   printf("Erreur d'arguments !: FicIn, FicOut, FicSeq, FicHash, FicRpt, FicRptGlobal");//JLB01
-   exit(0);
- }
+	if (argc < 7)//JLB01
+	{
+		printf("Erreur d'arguments !: FicIn FicOut FicSeq FicHash FicRpt FicRptGlobal\n");//JLB01
+		printf("ou                  : FicIn FicOut FicSeq FicHash FicRpt FicRptGlobal strictMode(0 ou 1)");
+		exit(0);
+	}
 
- strcpy( strFicIn,  argv[1]);
- strcpy( strFicOut,  argv[2]);
- strcpy( strFicSeq,  argv[3]);//JLB01
- strcpy( strFicHash,  argv[4]);
- strcpy( strFicRpt,  argv[5]);
- strcpy( strFicRptGlobal,  argv[6]);
+	if (argc == 8){
+		strictMode = atoi(argv[7]);
+	}
 
- HashTable ht;
+	strcpy( strFicIn,  argv[1]);
+	strcpy( strFicOut,  argv[2]);
+	strcpy( strFicSeq,  argv[3]);//JLB01
+	strcpy( strFicHash,  argv[4]);
+	strcpy( strFicRpt,  argv[5]);
+	strcpy( strFicRptGlobal,  argv[6]);
 
- // Initialisation de la table
- hashTableInit(ht, MOD);
+	HashTable ht;
 
- // Initialisation du fichier de sortie
- initFichier(strFicOut, &f_out);
+	// Initialisation de la table
+	hashTableInit(ht, MOD);
 
- //JLB01 Chargement du fichier des séquences en mémoire
- chargeFichierSequence();
+	// Initialisation du fichier de sortie
+	initFichier(strFicOut, &f_out);
 
-
- // Initialisation du fichier hashtable
- initFichier(strFicHash, &f_hash);
-
- // Initialisation du fichier rapport
- initFichier(strFicRpt, &f_rpt);
+	//JLB01 Chargement du fichier des séquences en mémoire
+	chargeFichierSequence();
 
 
- //Traitement du fichier d'entrée
- FILE* filein;
+	// Initialisation du fichier hashtable
+	initFichier(strFicHash, &f_hash);
+
+	// Initialisation du fichier rapport
+	initFichier(strFicRpt, &f_rpt);
+
+
+	//Traitement du fichier d'entrée
+	FILE* filein;
 #ifdef _WIN32
- if ((filein = fopen(strFicIn, "r")) == 0)
+	if ((filein = fopen(strFicIn, "r")) == 0)
 #else
- if ((filein = fopen(strFicIn, "rb, type=record")) == 0)
+		if ((filein = fopen(strFicIn, "rb, type=record")) == 0)
 #endif
- {
-  fprintf(stderr, "Probleme d'ouverture: %s\n", strFicIn);
-  exit(1);
- }
+		{
+			fprintf(stderr, "Probleme d'ouverture: %s\n", strFicIn);
+			exit(1);
+		}
 
 
- lectureFichierEtChainage(filein, ht);
+	lectureFichierEtChainage(filein, ht);
 
- fclose(filein);
+	fclose(filein);
 
- //JLB01 Déchargement du fichier des séquences
- dechargeFichierSequence();
-
-
- //Fermeture des autres fichiers
- fclose(f_out);
- fclose(f_hash);
- fclose(f_rpt);
+	//JLB01 Déchargement du fichier des séquences
+	dechargeFichierSequence();
 
 
- //Ecriture du fichier rapport global
- if(bRapportGlobal)
- {
-  ecritRapportGlobal();
- }
+	//Fermeture des autres fichiers
+	fclose(f_out);
+	fclose(f_hash);
+	fclose(f_rpt);
 
- return 0;
+
+	//Ecriture du fichier rapport global
+	if(bRapportGlobal)
+	{
+		ecritRapportGlobal();
+	}
+
+	return 0;
 }
 
 
